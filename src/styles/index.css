@@ -1,0 +1,15 @@
+.profit-row {
+  background-color: rgba(82, 196, 26, 0.1);
+}
+
+.profit-row:hover > td {
+  background-color: rgba(82, 196, 26, 0.2) !important;
+}
+
+.loss-row {
+  background-color: rgba(245, 34, 45, 0.1);
+}
+
+.loss-row:hover > td {
+  background-color: rgba(245, 34, 45, 0.2) !important;
+}
