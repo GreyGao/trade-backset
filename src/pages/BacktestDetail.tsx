@@ -248,7 +248,7 @@ const BacktestDetail: React.FC = observer(() => {
         <Descriptions.Item label="当前资金">{`¥${backtest.currentCapital.toLocaleString()}`}</Descriptions.Item>
         <Descriptions.Item label="最大回撤">{`${(summary.maxDrawdown * 100).toFixed(2)}%`}</Descriptions.Item>
         <Descriptions.Item label="交易次数">{summary.totalTrades}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{backtest.createTime.toLocaleString()}</Descriptions.Item>
+        <Descriptions.Item label="创建时间">{formatTimestamp(backtest.createTime)}</Descriptions.Item>
       </Descriptions>
 
       <Tabs defaultActiveKey="1">

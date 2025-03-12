@@ -46,7 +46,7 @@ const BacktestList: React.FC = observer(() => {
       const values = await form.validateFields();
       const strategy = strategyStore.strategies.find(s => s.id === values.strategyId);
       if (!strategy) return;
-      
+
       const now = Date.now()
       // 确保字段名与 Backtest 类型匹配
       const result = await backtestStore.addBacktest({
@@ -60,12 +60,12 @@ const BacktestList: React.FC = observer(() => {
         updateTime: now,
         notes: '',
       });
-      
+
       if (!result.success) {
         message.error(result.error);
         return;
       }
-      
+
       setVisible(false);
     } catch (error) {
       console.error('创建回测失败:', error);
@@ -78,13 +78,13 @@ const BacktestList: React.FC = observer(() => {
       title: '回测名称',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
+      width: 100,
     },
     {
       title: '策略',
       dataIndex: 'strategyName',
       key: 'strategyName',
-      width: 120,
+      width: 100,
     },
     {
       title: '初始资金',
@@ -102,48 +102,49 @@ const BacktestList: React.FC = observer(() => {
     },
     {
       title: '收益比例',
-      dataIndex: 'profitRatio',
+      dataIndex: 'summary.profitRatio',
       key: 'profitRatio',
-      width: 100,
-      render: (value: number) => `${(value * 100).toFixed(2)}%`,
+      width: 80,
+      render: (value = 0) => `${(value * 100).toFixed(2)}%`,
       // sorter: (a: Backtest, b: Backtest) => a.profitRatio - b.profitRatio,
     },
     {
       title: '正确率',
-      dataIndex: 'winRate',
+      dataIndex: 'summary.winRate',
       key: 'winRate',
       width: 80,
-      render: (value: number) => `${(value * 100).toFixed(2)}%`,
+      render: (value = 0) => `${(value * 100).toFixed(2)}%`,
       // sorter: (a: Backtest, b: Backtest) => a.winRate - b.winRate,
     },
     {
       title: '盈亏比',
-      dataIndex: 'profitFactor',
+      dataIndex: 'summary.profitFactor',
       key: 'profitFactor',
       width: 80,
-      render: (value: number) => value.toFixed(2),
+      render: (value = 0) => value.toFixed(2),
       // sorter: (a: Backtest, b: Backtest) => a.profitFactor - b.profitFactor,
     },
     {
       title: '期望值',
-      dataIndex: 'expectation',
+      dataIndex: 'summary.expectation',
       key: 'expectation',
       width: 80,
-      render: (value: number) => value.toFixed(2),
+      render: (value = 0) => value.toFixed(2),
       // sorter: (a: Backtest, b: Backtest) => a.expectation - b.expectation,
     },
     {
       title: '最大回撤',
-      dataIndex: 'maxDrawdown',
+      dataIndex: 'summary.maxDrawdown',
       key: 'maxDrawdown',
       width: 80,
-      render: (value: number) => `${(value * 100).toFixed(2)}%`,
+      render: (value = 0) => `${(value * 100).toFixed(2)}%`,
     },
     {
       title: '交易次数',
-      dataIndex: 'transactionCount',
+      dataIndex: 'summary.totalTrades',
       key: 'transactionCount',
       width: 80,
+      render: (value = 0) => value,
     },
     {
       title: '创建时间',
@@ -190,21 +191,21 @@ const BacktestList: React.FC = observer(() => {
         summary={(pageData) => {
           let totalProfit = 0;
           let totalInitialCapital = 0; // 修改 totalInitialBalance 为 totalInitialCapital
-          
+
           // pageData.forEach(({ profitRatio, initialCapital }) => { // 修改 initialBalance 为 initialCapital
           //   totalProfit += profitRatio || 0;
           //   totalInitialCapital += initialCapital || 0;
           // });
-          
+
           const avgProfit = pageData.length ? totalProfit / pageData.length : 0;
-          
+
           return (
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={2}>汇总</Table.Summary.Cell>
                 <Table.Summary.Cell index={2}>{`¥${totalInitialCapital.toLocaleString()}`}</Table.Summary.Cell>
                 <Table.Summary.Cell index={3}></Table.Summary.Cell>
-                <Table.Summary.Cell index={4}>{`${(avgProfit * 100).toFixed(2)}%`}</Table.Summary.Cell>
+                {/* <Table.Summary.Cell index={4}>{`${(avgProfit * 100).toFixed(2)}%`}</Table.Summary.Cell> */}
                 <Table.Summary.Cell index={5} colSpan={7}></Table.Summary.Cell>
               </Table.Summary.Row>
             </Table.Summary>
