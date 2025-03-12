@@ -48,7 +48,8 @@ export interface Trade {
   reason: string;            // 交易原因
   profit: number;            // 交易盈亏（卖出时有效）
   notes?: string;            // 交易备注（可选）
-  fee?: number;              // 交易费用（可选）
+  fee: number;              // 交易费用（可选）
+  createTime: number;          // 创建时间
 }
 
 export interface Position {

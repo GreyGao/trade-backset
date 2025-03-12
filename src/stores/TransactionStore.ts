@@ -26,11 +26,12 @@ export class TransactionStore {
     }
   }
 
-  async addTransaction(transaction: Omit<Trade, 'id'>, backtestStore: BacktestStore): Promise<DatabaseResult<Trade>> {
+  async addTransaction(transaction: Omit<Trade, 'id' | 'createTime'>, backtestStore: BacktestStore): Promise<DatabaseResult<Trade>> {
     try {
       const newTransaction = {
         ...transaction,
-        id: uuidv4()
+        id: uuidv4(),
+        createTime: Date.now(),
       };
       
       const id = await db.trades.insert(newTransaction);
@@ -76,4 +77,43 @@ export class TransactionStore {
       };
     }
   }
+
+  async deleteTransaction(id: string, backtestStore: BacktestStore) {
+      try {
+        // 获取要删除的交易记录
+        const transaction = this.transactions.find(t => t.id === id);
+        if (!transaction) {
+          return { success: false, error: '交易记录不存在' };
+        }
+  
+        // 从数据库中删除 - 修正表名为 trades
+        const trade = await db.trades.findOne({ id });
+        if (!trade) {
+          return { success: false, error: `未找到ID为${id}的交易记录` };
+        }
+        
+        await db.trades.remove(trade);
+  
+        // 更新 store 中的数据
+        this.transactions = this.transactions.filter(t => t.id !== id);
+  
+        // 更新回测资金
+        if (transaction.type === 'BUY') {
+          // 买入记录：返还资金和手续费
+          await backtestStore.updateBacktest(transaction.backtestId, {
+            currentCapital: backtestStore.currentBacktest!.currentCapital + transaction.amount + transaction.fee
+          });
+        } else {
+          // 卖出记录：扣除资金（不含手续费）
+          await backtestStore.updateBacktest(transaction.backtestId, {
+            currentCapital: backtestStore.currentBacktest!.currentCapital - transaction.amount + transaction.fee
+          });
+        }
+  
+        return { success: true };
+      } catch (error) {
+        console.error('删除交易记录失败:', error);
+        return { success: false, error: '删除失败' };
+      }
+    }
 }

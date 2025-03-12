@@ -6,7 +6,7 @@ import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { rootStore } from '../stores';
 import { Trade, Position } from '../types/database';
 import { withDBCheck } from '../components/withDBCheck';
-import { formatTimestamp } from '../utils/dateFormat';
+import { dateToTimestamp, formatTimestamp } from '../utils/dateFormat';
 import BuyModal from '../components/trade/BuyModal';
 
 const { TabPane } = Tabs;
@@ -15,7 +15,6 @@ const BacktestDetail: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { backtestStore, transactionStore, positionStore, stockStore } = rootStore;
-  const [transactionModalVisible, setTransactionModalVisible] = useState(false);
   const [buyModalVisible, setBuyModalVisible] = useState(false);
   const [sellModalVisible, setSellModalVisible] = useState(false);
   const [form] = Form.useForm();
@@ -47,7 +46,7 @@ const BacktestDetail: React.FC = observer(() => {
 
       if (!id || !stock) return;
 
-      const transaction: Omit<Trade, 'id'> = {
+      const transaction: Omit<Trade, 'id' | 'createTime'> = {
         backtestId: id,
         stockCode: values.stockCode,
         stockName: stock.name,
@@ -56,7 +55,7 @@ const BacktestDetail: React.FC = observer(() => {
         quantity: values.shares,
         fee: values.fee || 0,
         amount: values.price * values.shares,
-        timestamp: Date.now(),
+        timestamp: dateToTimestamp(new Date(values.timestamp)),
         profit: 0,
         reason: values.reason,
       };
@@ -78,13 +77,42 @@ const BacktestDetail: React.FC = observer(() => {
     }
   };
 
+    // 添加删除交易记录的处理函数
+    const handleDeleteTransaction = async (record: Trade) => {
+      Modal.confirm({
+        title: '确认删除',
+        content: '确定要删除这条交易记录吗？删除后将更新持仓和资金。',
+        okText: '确认',
+        cancelText: '取消',
+        onOk: async () => {
+          try {
+            const result = await transactionStore.deleteTransaction(record.id, backtestStore);
+            if (!result.success) {
+              message.error(result.error);
+              return;
+            }
+  
+            // 删除后重新获取持仓信息
+            if (id) {
+              await positionStore.fetchPositionsByBacktest(id);
+            }
+  
+            message.success('删除成功');
+          } catch (error) {
+            console.error('删除交易记录失败:', error);
+            message.error('删除失败');
+          }
+        }
+      });
+    };
+
   // 修改类型
   const transactionColumns = [
     {
       title: '时间',
       dataIndex: 'timestamp', // 可能已从 datetime 改为 timestamp
       key: 'timestamp',
-      render: (timestamp: number) => formatTimestamp(timestamp),
+      render: (timestamp: number) => formatTimestamp(timestamp, 'date'),
     },
     {
       title: '股票代码',
@@ -132,6 +160,19 @@ const BacktestDetail: React.FC = observer(() => {
       key: 'profit',
       render: (text: number) => text ? `¥${text.toFixed(2)}` : '-',
     },
+    // {
+    //   title: '操作',
+    //   key: 'action',
+    //   render: (text: number, record: Trade) => (
+    //     <Button 
+    //       type="link" 
+    //       danger 
+    //       onClick={() => handleDeleteTransaction(record)}
+    //     >
+    //       删除
+    //     </Button>
+    //   ),
+    // }
   ];
 
   // 修改类型

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, DatePicker } from 'antd';
 import { Stock } from '../../types/database';
 import { calculateBuyFee } from '../../utils/feeCalculator';
+import moment from 'moment';
 
 interface BuyModalProps {
   visible: boolean;
@@ -12,6 +13,7 @@ interface BuyModalProps {
   lastTransaction?: {
     stockCode: string;
     price: number;
+    timestamp?: number;  // 添加 timestamp
   };
 }
 
@@ -33,6 +35,7 @@ const BuyModal: React.FC<BuyModalProps> = ({
       form.setFieldsValue({
         stockCode: lastTransaction.stockCode,
         price: lastTransaction.price,
+        timestamp: lastTransaction.timestamp ? moment(lastTransaction.timestamp) : undefined, // 设置默认日期
       });
       calculateMaxBuyQuantity(lastTransaction.price);
     }
@@ -98,6 +101,17 @@ const BuyModal: React.FC<BuyModalProps> = ({
         initialValues={{ type: 'BUY', fee: 0 }}
       >
         <Form.Item name="type" hidden><Input /></Form.Item>
+        <Form.Item
+          name="timestamp"
+          label="交易日期"
+          rules={[{ required: true, message: '请选择交易日期' }]}
+        >
+          <DatePicker 
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+            placeholder="请选择交易日期"
+          />
+        </Form.Item>
         <Form.Item
           name="stockCode"
           label="选择股票"
