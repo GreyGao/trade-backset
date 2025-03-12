@@ -14,14 +14,14 @@ export const calculateStampDuty = (amount: number): number => {
   return Number((amount * 0.0005).toFixed(2));
 };
 
-// 计算买入手续费
+// 计算买入手续费（过户费 + 佣金 ）
 export const calculateBuyFee = (amount: number): number => {
   const transferFee = calculateTransferFee(amount);
   const commission = calculateCommission(amount);
   return Number((transferFee + commission).toFixed(2));
 };
 
-// 计算卖出手续费
+// 计算卖出手续费（过户费 + 佣金 + 印花税）
 export const calculateSellFee = (amount: number): number => {
   const transferFee = calculateTransferFee(amount);
   const commission = calculateCommission(amount);

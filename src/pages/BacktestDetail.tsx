@@ -8,6 +8,7 @@ import { Trade, Position } from '../types/database';
 import { withDBCheck } from '../components/withDBCheck';
 import { dateToTimestamp, formatTimestamp } from '../utils/dateFormat';
 import BuyModal from '../components/trade/BuyModal';
+import SellModal from '../components/trade/SellModal';
 
 const { TabPane } = Tabs;
 
@@ -77,34 +78,72 @@ const BacktestDetail: React.FC = observer(() => {
     }
   };
 
-    // 添加删除交易记录的处理函数
-    const handleDeleteTransaction = async (record: Trade) => {
-      Modal.confirm({
-        title: '确认删除',
-        content: '确定要删除这条交易记录吗？删除后将更新持仓和资金。',
-        okText: '确认',
-        cancelText: '取消',
-        onOk: async () => {
-          try {
-            const result = await transactionStore.deleteTransaction(record.id, backtestStore);
-            if (!result.success) {
-              message.error(result.error);
-              return;
-            }
-  
-            // 删除后重新获取持仓信息
-            if (id) {
-              await positionStore.fetchPositionsByBacktest(id);
-            }
-  
-            message.success('删除成功');
-          } catch (error) {
-            console.error('删除交易记录失败:', error);
-            message.error('删除失败');
+  // 添加卖出提交处理函数
+  const handleSellSubmit = async (values: any) => {
+    try {
+      const position = positionStore.positions.find(p => p.stockCode === values.stockCode);
+
+      if (!id || !position) return;
+
+      const transaction: Omit<Trade, 'id' | 'createTime'> = {
+        backtestId: id,
+        stockCode: values.stockCode,
+        stockName: position.stockName,
+        type: 'SELL',
+        price: values.price,
+        quantity: values.shares,
+        fee: values.fee || 0,
+        amount: values.price * values.shares,
+        timestamp: dateToTimestamp(new Date(values.timestamp)),
+        profit: (values.price - position.avgCost) * values.shares,
+        reason: values.reason,
+      };
+
+      const result = await transactionStore.addTransaction(transaction, backtestStore);
+      if (!result.success) {
+        message.error(result.error);
+        return;
+      }
+
+      const positionResult = await positionStore.updatePositions(id, transaction as Trade);
+      if (!positionResult.success) {
+        message.error(positionResult.error);
+      }
+
+      setSellModalVisible(false);
+    } catch (error) {
+      console.error('添加卖出记录失败:', error);
+    }
+  };
+
+  // 添加删除交易记录的处理函数
+  const handleDeleteTransaction = async (record: Trade) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: '确定要删除这条交易记录吗？删除后将更新持仓和资金。',
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const result = await transactionStore.deleteTransaction(record.id, backtestStore);
+          if (!result.success) {
+            message.error(result.error);
+            return;
           }
+
+          // 删除后重新获取持仓信息
+          if (id) {
+            await positionStore.fetchPositionsByBacktest(id);
+          }
+
+          message.success('删除成功');
+        } catch (error) {
+          console.error('删除交易记录失败:', error);
+          message.error('删除失败');
         }
-      });
-    };
+      }
+    });
+  };
 
   // 修改类型
   const transactionColumns = [
@@ -342,6 +381,13 @@ const BacktestDetail: React.FC = observer(() => {
         onOk={handleBuySubmit}
         stocks={stockStore.stocks}
         maxCapital={backtest.currentCapital}
+        lastTransaction={transactionStore.transactions[0]}
+      />
+      <SellModal
+        visible={sellModalVisible}
+        onCancel={() => setSellModalVisible(false)}
+        onOk={handleSellSubmit}
+        positions={positionStore.positions}
         lastTransaction={transactionStore.transactions[0]}
       />
     </div>
