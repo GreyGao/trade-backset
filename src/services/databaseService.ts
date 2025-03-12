@@ -13,7 +13,7 @@ export class DatabaseService {
   // 策略相关
   static async createStrategy(strategy: Omit<Strategy, 'id' | 'createTime' | 'updateTime'>): Promise<DatabaseResult<Strategy>> {
     try {
-      const now = new Date();
+      const now = Date.now();
       const newStrategy = {
         ...strategy,
         id: uuidv4(),
@@ -36,7 +36,7 @@ export class DatabaseService {
   // 回测相关
   static async createBacktest(backtest: Omit<Backtest, 'id' | 'createTime' | 'updateTime' | 'summary'>): Promise<DatabaseResult<Backtest>> {
     try {
-      const now = new Date();
+      const now = Date.now();
       const newBacktest = {
         ...backtest,
         id: uuidv4(),
@@ -121,7 +121,7 @@ export class DatabaseService {
             avgCost: trade.price,
             marketPrice: trade.price,
             profit: 0,
-            updateTime: new Date()
+            updateTime: Date.now()
           };
           const insertResult = db.positions.insert(position);
           if (!insertResult) {
@@ -134,7 +134,7 @@ export class DatabaseService {
             ...position,
             avgCost: totalCost / newQuantity,
             quantity: newQuantity,
-            updateTime: new Date()
+            updateTime: Date.now()
           };
           const updateResult = db.positions.update(updatedPosition);
           if (!updateResult) {
@@ -152,7 +152,7 @@ export class DatabaseService {
           const updatedPosition = {
             ...position,
             quantity: newQuantity,
-            updateTime: new Date()
+            updateTime: Date.now()
           };
           const updateResult = db.positions.update(updatedPosition);
           if (!updateResult) {
@@ -214,7 +214,7 @@ export class DatabaseService {
       const updatedBacktest = {
         ...backtest,
         summary,
-        updateTime: new Date()
+        updateTime: Date.now()
       };
 
       const updateResult = db.backtests.update(updatedBacktest);

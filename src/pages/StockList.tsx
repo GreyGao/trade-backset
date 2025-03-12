@@ -4,6 +4,7 @@ import { Table, Button, Typography, Modal, Form, Input, Space, message } from 'a
 import { PlusOutlined } from '@ant-design/icons';
 import { rootStore } from '../stores';
 import { Stock } from '../types/database';
+import { withDBCheck } from '../components/withDBCheck';
 
 const { Title } = Typography;
 
@@ -148,4 +149,4 @@ const StockList: React.FC = observer(() => {
   );
 });
 
-export default StockList;
+export default withDBCheck(StockList);

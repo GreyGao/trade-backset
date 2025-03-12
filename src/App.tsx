@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout, ConfigProvider, theme as antdTheme, Switch, Space } from 'antd';
 import { BulbOutlined, BulbFilled } from '@ant-design/icons';
@@ -8,7 +8,9 @@ import StrategyList from './pages/StrategyList';
 import BacktestList from './pages/BacktestList';
 import BacktestDetail from './pages/BacktestDetail';
 import StockList from './pages/StockList';
+import { db } from './db'
 import './styles/index.css'
+import DataManagement from './pages/DataManagement';
 
 const { Sider, Content, Header } = Layout;
 
@@ -33,17 +35,17 @@ function App() {
     >
       <Router>
         <Layout style={{ minHeight: '100vh' }}>
-          <Header style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+          <Header style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             padding: '0 24px',
             background: isDarkMode ? '#1f1f1f' : '#fff',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+            boxShadow: '0 1px 4px rgba(118, 117, 117, 0.1)',
             color: isDarkMode ? 'white' : 'rgba(0, 0, 0, 0.85)'
           }}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#7b39ed' }}>
-              <span style={{ color: isDarkMode ?'#FFF':'#666' }}>灰的策略回测系统</span> <sup style={{ fontSize: '12px' }}>v1</sup>
+              <span style={{ color: isDarkMode ? '#FFF' : '#666' }}>灰的策略回测系统</span> <sup style={{ fontSize: '12px' }}>v1</sup>
             </div>
             <Space>
               <span>
@@ -68,6 +70,7 @@ function App() {
                 <Route path="/backtests" element={<BacktestList />} />
                 <Route path="/backtests/:id" element={<BacktestDetail />} />
                 <Route path="/stocks" element={<StockList />} />
+                <Route path="/data-management" element={<DataManagement />} />
               </Routes>
             </Content>
           </Layout>

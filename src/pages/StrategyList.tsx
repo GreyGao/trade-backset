@@ -4,6 +4,8 @@ import { Table, Button, Typography, Modal, Form, Input, Space, message } from 'a
 import { PlusOutlined } from '@ant-design/icons';
 import { rootStore } from '../stores';
 import { Strategy } from '../types/database';
+import { withDBCheck } from '../components/withDBCheck';
+import { formatTimestamp } from '../utils/dateFormat';
 
 const { Title } = Typography;
 
@@ -82,7 +84,7 @@ const StrategyList: React.FC = observer(() => {
       title: '创建时间',
       dataIndex: 'createTime',
       key: 'createTime',
-      render: (text: Date) => text.toLocaleString(),
+      render: (timestamp: number) => formatTimestamp(timestamp),
     },
     {
       title: '操作',
@@ -141,4 +143,5 @@ const StrategyList: React.FC = observer(() => {
   );
 });
 
-export default StrategyList;
+
+export default withDBCheck(StrategyList);

@@ -38,7 +38,7 @@ export class PositionStore {
             ...existingPosition,
             quantity: totalShares,
             avgCost: totalCost / totalShares,
-            updateTime: new Date()
+            updateTime: Date.now()
           };
           
           const result = await db.positions.update(updatedPosition);
@@ -55,7 +55,7 @@ export class PositionStore {
             avgCost: transaction.price,
             marketPrice: transaction.price,
             profit: 0,
-            updateTime: new Date()
+            updateTime: Date.now()
           };
           
           const result = await db.positions.insert(newPosition);
@@ -79,7 +79,7 @@ export class PositionStore {
             const updatedPosition = {
               ...existingPosition,
               quantity: remainingShares,
-              updateTime: new Date()
+              updateTime: Date.now()
             };
             
             const result = await db.positions.update(updatedPosition);
@@ -119,7 +119,7 @@ export class PositionStore {
         ...position,
         marketPrice,
         profit,
-        updateTime: new Date()
+        updateTime: Date.now()
       };
       
       const result = await db.positions.update(updatedPosition);

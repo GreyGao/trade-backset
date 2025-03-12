@@ -25,7 +25,7 @@ export class StrategyStore {
 
   async addStrategy(strategy: Omit<Strategy, 'id' | 'createTime'>): Promise<DatabaseResult<Strategy>> {
     try {
-      const now = new Date();
+      const now = Date.now();
       const newStrategy: Strategy = { 
         ...strategy,
         id: uuidv4(),
@@ -58,7 +58,7 @@ export class StrategyStore {
         ...existingStrategy,
         ...data,
         id,
-        updateTime: new Date()
+        updateTime: Date.now()
       };
       
       const result = await db.strategies.update(updatedStrategy);

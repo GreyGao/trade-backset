@@ -3,8 +3,8 @@ export interface Strategy {
   name: string;              // 策略名称
   description: string;       // 策略描述
   rules: string[];           // 策略规则列表
-  createTime: Date;          // 创建时间
-  updateTime: Date;          // 更新时间
+  createTime: number;          // 创建时间
+  updateTime: number;          // 更新时间
 }
 
 export interface Backtest {
@@ -12,8 +12,8 @@ export interface Backtest {
   name: string;              // 回测名称
   strategyId: string;        // 关联的策略ID
   strategyName: string;      // 策略名称
-  startDate: Date;           // 回测开始日期
-  endDate?: Date;            // 回测结束日期（可选）
+  startDate: number;           // 回测开始日期
+  endDate?: number;            // 回测结束日期（可选）
   initialCapital: number;    // 初始资金
   currentCapital: number;    // 当前资金
   status: 'active' | 'completed' | 'archived';  // 回测状态：进行中、已完成、已归档
@@ -31,8 +31,8 @@ export interface Backtest {
     profitRatio: number;     // 收益比例（总收益/初始资金）
   };
   notes: string;             // 备注
-  createTime: Date;          // 创建时间
-  updateTime: Date;          // 更新时间
+  createTime: number;          // 创建时间
+  updateTime: number;          // 更新时间
 }
 
 export interface Trade {
@@ -60,7 +60,7 @@ export interface Position {
   avgCost: number;           // 平均成本
   marketPrice: number;       // 市场价格
   profit: number;            // 持仓盈亏
-  updateTime: Date;          // 更新时间
+  updateTime: number;          // 更新时间
 }
 
 export interface Stock {

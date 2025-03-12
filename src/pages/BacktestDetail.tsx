@@ -5,6 +5,8 @@ import { Card, Tabs, Table, Button, Statistic, Row, Col, Descriptions, Space, Mo
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { rootStore } from '../stores';
 import { Trade, Position } from '../types/database';
+import { withDBCheck } from '../components/withDBCheck';
+import { formatTimestamp } from '../utils/dateFormat';
 
 const { TabPane } = Tabs;
 
@@ -78,7 +80,7 @@ const BacktestDetail: React.FC = observer(() => {
       title: '时间',
       dataIndex: 'timestamp', // 可能已从 datetime 改为 timestamp
       key: 'timestamp',
-      render: (text: Date) => text.toLocaleString(),
+      render: (timestamp: number) => formatTimestamp(timestamp),
     },
     {
       title: '股票代码',
@@ -373,4 +375,4 @@ const BacktestDetail: React.FC = observer(() => {
   );
 });
 
-export default BacktestDetail;
+export default withDBCheck(BacktestDetail);

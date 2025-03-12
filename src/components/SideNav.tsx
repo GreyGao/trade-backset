@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu } from 'antd';
 import { LineChartOutlined, AppstoreOutlined, StockOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { DatabaseOutlined } from '@ant-design/icons';
 
 interface SideNavProps {
   isDarkMode: boolean;
@@ -11,6 +12,7 @@ const SideNav: React.FC<SideNavProps> = ({ isDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 在菜单项中添加
   const items = [
     {
       key: '/backtests',
@@ -30,6 +32,12 @@ const SideNav: React.FC<SideNavProps> = ({ isDarkMode }) => {
       label: '股票池',
       onClick: () => navigate('/stocks'),
     },
+    {
+      key: '/data-management',
+      icon: <DatabaseOutlined />,
+      label: '数据管理',
+      onClick: () => navigate('/data-management'),
+    }
   ];
 
   return (

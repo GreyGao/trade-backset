@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { rootStore } from '../stores';
 import { Backtest } from '../types/database';
 import { ColumnType } from 'antd/es/table';
+import { withDBCheck } from '../components/withDBCheck';
+import { formatTimestamp } from '../utils/dateFormat';
 
 const { Title } = Typography;
 
@@ -45,7 +47,7 @@ const BacktestList: React.FC = observer(() => {
       const strategy = strategyStore.strategies.find(s => s.id === values.strategyId);
       if (!strategy) return;
       
-      const now = new Date()
+      const now = Date.now()
       // 确保字段名与 Backtest 类型匹配
       const result = await backtestStore.addBacktest({
         name: values.name,
@@ -147,8 +149,8 @@ const BacktestList: React.FC = observer(() => {
       title: '创建时间',
       dataIndex: 'createTime',
       key: 'createTime',
+      render: (timestamp: number) => formatTimestamp(timestamp),
       width: 150,
-      render: (text: Date) => text.toLocaleString(),
     },
     {
       title: '操作',
@@ -258,4 +260,4 @@ const BacktestList: React.FC = observer(() => {
   );
 });
 
-export default BacktestList;
+export default withDBCheck(BacktestList);

@@ -61,7 +61,7 @@ export class BacktestStore {
           expectation: 0,
           profitRatio: 0,
         },
-        createTime: new Date()
+        createTime: Date.now()
       };
       
       const id = await db.backtests.insert(newBacktest);
@@ -91,7 +91,7 @@ export class BacktestStore {
         ...existingBacktest,
         ...data,
         id,
-        updateTime: new Date()
+        updateTime: Date.now()
       };
       
       const result = await db.backtests.update(updatedBacktest);
