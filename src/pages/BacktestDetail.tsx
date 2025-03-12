@@ -7,6 +7,7 @@ import { rootStore } from '../stores';
 import { Trade, Position } from '../types/database';
 import { withDBCheck } from '../components/withDBCheck';
 import { formatTimestamp } from '../utils/dateFormat';
+import BuyModal from '../components/trade/BuyModal';
 
 const { TabPane } = Tabs;
 
@@ -15,6 +16,8 @@ const BacktestDetail: React.FC = observer(() => {
   const navigate = useNavigate();
   const { backtestStore, transactionStore, positionStore, stockStore } = rootStore;
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
+  const [buyModalVisible, setBuyModalVisible] = useState(false);
+  const [sellModalVisible, setSellModalVisible] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -30,45 +33,46 @@ const BacktestDetail: React.FC = observer(() => {
     navigate('/backtests');
   };
 
-  const handleAddTransaction = () => {
-    form.resetFields();
-    setTransactionModalVisible(true);
+  const handleBuy = () => {
+    setBuyModalVisible(true);
   };
 
-  const handleSubmitTransaction = async () => {
+  const handleSell = () => {
+    setSellModalVisible(true);
+  };
+
+  const handleBuySubmit = async (values: any) => {
     try {
-      const values = await form.validateFields();
       const stock = stockStore.stocks.find(s => s.code === values.stockCode);
-      
+
       if (!id || !stock) return;
-      
+
       const transaction: Omit<Trade, 'id'> = {
         backtestId: id,
         stockCode: values.stockCode,
         stockName: stock.name,
-        type: values.type,
+        type: 'BUY',
         price: values.price,
-        quantity: values.shares, // 注意：字段名可能已更改
+        quantity: values.shares,
         fee: values.fee || 0,
         amount: values.price * values.shares,
-        timestamp: Date.now(), // 注意：字段名可能已更改
-        profit: values.type === 'SELL' ? values.profit : 0,
+        timestamp: Date.now(),
+        profit: 0,
         reason: values.reason,
       };
-      
+
       const result = await transactionStore.addTransaction(transaction, backtestStore);
       if (!result.success) {
         message.error(result.error);
         return;
       }
-      
-      // 更新持仓
+
       const positionResult = await positionStore.updatePositions(id, transaction as Trade);
       if (!positionResult.success) {
         message.error(positionResult.error);
       }
-      
-      setTransactionModalVisible(false);
+
+      setBuyModalVisible(false);
     } catch (error) {
       console.error('添加交易记录失败:', error);
     }
@@ -106,8 +110,9 @@ const BacktestDetail: React.FC = observer(() => {
     },
     {
       title: '数量',
-      dataIndex: 'shares',
-      key: 'shares',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      render: (text: number) => text,
     },
     {
       title: '金额',
@@ -254,9 +259,25 @@ const BacktestDetail: React.FC = observer(() => {
       <Tabs defaultActiveKey="1">
         <TabPane tab="交易记录" key="1">
           <div style={{ marginBottom: 16, textAlign: 'right' }}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTransaction}>
-              添加交易
-            </Button>
+            <Space>
+              <Button
+                type="primary"
+                danger
+                icon={<PlusOutlined />}
+                onClick={handleBuy}
+              >
+                买入
+              </Button>
+              <Button
+                type="primary"
+
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                icon={<PlusOutlined />}
+                onClick={handleSell}
+              >
+                卖出
+              </Button>
+            </Space>
           </div>
           <Table
             columns={transactionColumns}
@@ -274,103 +295,14 @@ const BacktestDetail: React.FC = observer(() => {
           />
         </TabPane>
       </Tabs>
-
-      <Modal
-        title="添加交易记录"
-        open={transactionModalVisible}
-        onCancel={() => setTransactionModalVisible(false)}
-        onOk={handleSubmitTransaction}
-        okText="添加"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="stockCode"
-            label="选择股票"
-            rules={[{ required: true, message: '请选择股票' }]}
-          >
-            <Select
-              showSearch
-              placeholder="请选择股票"
-              optionFilterProp="children"
-            >
-              {stockStore.stocks.map(stock => (
-                <Select.Option key={stock.id} value={stock.code}>
-                  {stock.code} - {stock.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="type"
-            label="交易类型"
-            rules={[{ required: true, message: '请选择交易类型' }]}
-          >
-            <Select placeholder="请选择交易类型">
-              <Select.Option value="BUY">买入</Select.Option>
-              <Select.Option value="SELL">卖出</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="price"
-            label="价格"
-            rules={[{ required: true, message: '请输入价格' }]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0}
-              precision={2}
-              prefix="¥"
-              placeholder="请输入价格"
-            />
-          </Form.Item>
-          <Form.Item
-            name="shares"
-            label="数量"
-            rules={[{ required: true, message: '请输入数量' }]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={1}
-              precision={0}
-              placeholder="请输入数量"
-            />
-          </Form.Item>
-          <Form.Item
-            name="fee"
-            label="手续费"
-            initialValue={0}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0}
-              precision={2}
-              prefix="¥"
-              placeholder="请输入手续费"
-            />
-          </Form.Item>
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
-          >
-            {({ getFieldValue }) => 
-              getFieldValue('type') === 'SELL' ? (
-                <Form.Item
-                  name="profit"
-                  label="盈亏金额"
-                  rules={[{ required: true, message: '请输入盈亏金额' }]}
-                >
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    prefix="¥"
-                    placeholder="请输入盈亏金额"
-                  />
-                </Form.Item>
-              ) : null
-            }
-          </Form.Item>
-        </Form>
-      </Modal>
+      <BuyModal
+        visible={buyModalVisible}
+        onCancel={() => setBuyModalVisible(false)}
+        onOk={handleBuySubmit}
+        stocks={stockStore.stocks}
+        maxCapital={backtest.currentCapital}
+        lastTransaction={transactionStore.transactions[0]}
+      />
     </div>
   );
 });
