@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Table, Button, Typography, Modal, Form, InputNumber, Select, Space, Input } from 'antd';
+import { Table, Button, Typography, Modal, Form, InputNumber, Select, Space, Input, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { rootStore } from '../stores/RootStore';
-import { IBacktest } from '../db';
+import { rootStore } from '../stores';
+import { Backtest } from '../types/database';
 import { ColumnType } from 'antd/es/table';
 
 const { Title } = Typography;
@@ -25,12 +25,16 @@ const BacktestList: React.FC = observer(() => {
     setVisible(true);
   };
 
-  const handleDelete = async (id: number) => {
+  // 修改参数类型和处理返回结果
+  const handleDelete = async (id: string) => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除这个回测吗？',
       onOk: async () => {
-        await backtestStore.deleteBacktest(id);
+        const result = await backtestStore.deleteBacktest(id);
+        if (!result.success) {
+          message.error(result.error);
+        }
       },
     });
   };
@@ -40,22 +44,34 @@ const BacktestList: React.FC = observer(() => {
       const values = await form.validateFields();
       const strategy = strategyStore.strategies.find(s => s.id === values.strategyId);
       if (!strategy) return;
-
-      await backtestStore.addBacktest({
+      
+      const now = new Date()
+      // 确保字段名与 Backtest 类型匹配
+      const result = await backtestStore.addBacktest({
         name: values.name,
         strategyId: values.strategyId,
         strategyName: strategy.name,
-        initialBalance: values.initialBalance,
-        currentBalance: values.initialBalance,
-        status: 'active'
+        initialCapital: values.initialBalance,
+        currentCapital: values.initialBalance,
+        status: 'active',
+        startDate: now,
+        updateTime: now,
+        notes: '',
       });
+      
+      if (!result.success) {
+        message.error(result.error);
+        return;
+      }
+      
       setVisible(false);
     } catch (error) {
       console.error('创建回测失败:', error);
     }
   };
 
-  const columns: ColumnType<IBacktest>[] = [
+  // 修改类型
+  const columns: ColumnType<Backtest>[] = [
     {
       title: '回测名称',
       dataIndex: 'name',
@@ -70,15 +86,15 @@ const BacktestList: React.FC = observer(() => {
     },
     {
       title: '初始资金',
-      dataIndex: 'initialBalance',
-      key: 'initialBalance',
+      dataIndex: 'initialCapital', // 修改 initialBalance 为 initialCapital
+      key: 'initialCapital',
       width: 100,
       render: (value: number) => `¥${value.toLocaleString()}`,
     },
     {
       title: '当前资金',
-      dataIndex: 'currentBalance',
-      key: 'currentBalance',
+      dataIndex: 'currentCapital', // 修改 currentBalance 为 currentCapital
+      key: 'currentCapital',
       width: 100,
       render: (value: number) => `¥${value.toLocaleString()}`,
     },
@@ -88,7 +104,7 @@ const BacktestList: React.FC = observer(() => {
       key: 'profitRatio',
       width: 100,
       render: (value: number) => `${(value * 100).toFixed(2)}%`,
-      sorter: (a: IBacktest, b: IBacktest) => a.profitRatio - b.profitRatio,
+      // sorter: (a: Backtest, b: Backtest) => a.profitRatio - b.profitRatio,
     },
     {
       title: '正确率',
@@ -96,7 +112,7 @@ const BacktestList: React.FC = observer(() => {
       key: 'winRate',
       width: 80,
       render: (value: number) => `${(value * 100).toFixed(2)}%`,
-      sorter: (a: IBacktest, b: IBacktest) => a.winRate - b.winRate,
+      // sorter: (a: Backtest, b: Backtest) => a.winRate - b.winRate,
     },
     {
       title: '盈亏比',
@@ -104,7 +120,7 @@ const BacktestList: React.FC = observer(() => {
       key: 'profitFactor',
       width: 80,
       render: (value: number) => value.toFixed(2),
-      sorter: (a: IBacktest, b: IBacktest) => a.profitFactor - b.profitFactor,
+      // sorter: (a: Backtest, b: Backtest) => a.profitFactor - b.profitFactor,
     },
     {
       title: '期望值',
@@ -112,7 +128,7 @@ const BacktestList: React.FC = observer(() => {
       key: 'expectation',
       width: 80,
       render: (value: number) => value.toFixed(2),
-      sorter: (a: IBacktest, b: IBacktest) => a.expectation - b.expectation,
+      // sorter: (a: Backtest, b: Backtest) => a.expectation - b.expectation,
     },
     {
       title: '最大回撤',
@@ -138,13 +154,13 @@ const BacktestList: React.FC = observer(() => {
       title: '操作',
       key: 'action',
       width: 150,
-      fixed: 'right' as const, // 使用类型断言
-      render: (_: any, record: IBacktest) => (
+      fixed: 'right' as const,
+      render: (_: any, record: Backtest) => (
         <Space>
           <Button type="primary" onClick={() => navigate(`/backtests/${record.id}`)}>
             详情
           </Button>
-          <Button danger onClick={() => handleDelete(record.id!)}>
+          <Button danger onClick={() => handleDelete(record.id)}>
             删除
           </Button>
         </Space>
@@ -168,15 +184,15 @@ const BacktestList: React.FC = observer(() => {
         rowKey="id"
         pagination={false}
         scroll={{ x: 1500 }}
-        rowClassName={(record) => record.profitRatio >= 0 ? 'profit-row' : 'loss-row'}
+        rowClassName={(record) => record.summary.realizedProfit >= 0 ? 'profit-row' : 'loss-row'}
         summary={(pageData) => {
           let totalProfit = 0;
-          let totalInitialBalance = 0;
+          let totalInitialCapital = 0; // 修改 totalInitialBalance 为 totalInitialCapital
           
-          pageData.forEach(({ profitRatio, initialBalance }) => {
-            totalProfit += profitRatio || 0;
-            totalInitialBalance += initialBalance || 0;
-          });
+          // pageData.forEach(({ profitRatio, initialCapital }) => { // 修改 initialBalance 为 initialCapital
+          //   totalProfit += profitRatio || 0;
+          //   totalInitialCapital += initialCapital || 0;
+          // });
           
           const avgProfit = pageData.length ? totalProfit / pageData.length : 0;
           
@@ -184,7 +200,7 @@ const BacktestList: React.FC = observer(() => {
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={2}>汇总</Table.Summary.Cell>
-                <Table.Summary.Cell index={2}>{`¥${totalInitialBalance.toLocaleString()}`}</Table.Summary.Cell>
+                <Table.Summary.Cell index={2}>{`¥${totalInitialCapital.toLocaleString()}`}</Table.Summary.Cell>
                 <Table.Summary.Cell index={3}></Table.Summary.Cell>
                 <Table.Summary.Cell index={4}>{`${(avgProfit * 100).toFixed(2)}%`}</Table.Summary.Cell>
                 <Table.Summary.Cell index={5} colSpan={7}></Table.Summary.Cell>

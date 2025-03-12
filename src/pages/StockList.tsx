@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Table, Button, Typography, Modal, Form, Input, Space } from 'antd';
+import { Table, Button, Typography, Modal, Form, Input, Space, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { rootStore } from '../stores/RootStore';
-import { IStock } from '../db';
+import { rootStore } from '../stores';
+import { Stock } from '../types/database';
 
 const { Title } = Typography;
 
 const StockList: React.FC = observer(() => {
   const { stockStore } = rootStore;
   const [visible, setVisible] = useState(false);
-  const [editingStock, setEditingStock] = useState<IStock | null>(null);
+  const [editingStock, setEditingStock] = useState<Stock | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -23,18 +23,22 @@ const StockList: React.FC = observer(() => {
     setVisible(true);
   };
 
-  const handleEdit = (record: IStock) => {
+  const handleEdit = (record: Stock) => {
     setEditingStock(record);
     form.setFieldsValue(record);
     setVisible(true);
   };
 
-  const handleDelete = async (id: number) => {
+  // 修改参数类型和处理返回结果
+  const handleDelete = async (id: string) => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除这个股票吗？',
       onOk: async () => {
-        await stockStore.deleteStock(id);
+        const result = await stockStore.deleteStock(id);
+        if (!result.success) {
+          message.error(result.error);
+        }
       },
     });
   };
@@ -43,9 +47,17 @@ const StockList: React.FC = observer(() => {
     try {
       const values = await form.validateFields();
       if (editingStock) {
-        await stockStore.updateStock(editingStock.id!, values);
+        const result = await stockStore.updateStock(editingStock.id, values);
+        if (!result.success) {
+          message.error(result.error);
+          return;
+        }
       } else {
-        await stockStore.addStock(values);
+        const result = await stockStore.addStock(values);
+        if (!result.success) {
+          message.error(result.error);
+          return;
+        }
       }
       setVisible(false);
     } catch (error) {
@@ -72,7 +84,7 @@ const StockList: React.FC = observer(() => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: IStock) => (
+      render: (_: any, record: Stock) => (
         <Space>
           <Button type="primary" onClick={() => handleEdit(record)}>编辑</Button>
           <Button danger onClick={() => handleDelete(record.id!)}>删除</Button>

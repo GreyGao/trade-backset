@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Table, Button, Typography, Modal, Form, Input, Space } from 'antd';
+import { Table, Button, Typography, Modal, Form, Input, Space, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { rootStore } from '../stores/RootStore';
-import { IStrategy } from '../db';
+import { rootStore } from '../stores';
+import { Strategy } from '../types/database';
 
 const { Title } = Typography;
 
 const StrategyList: React.FC = observer(() => {
   const { strategyStore } = rootStore;
   const [visible, setVisible] = useState(false);
-  const [editingStrategy, setEditingStrategy] = useState<IStrategy | null>(null);
+  // 修改类型
+  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -23,18 +24,23 @@ const StrategyList: React.FC = observer(() => {
     setVisible(true);
   };
 
-  const handleEdit = (record: IStrategy) => {
+  // 修改类型
+  const handleEdit = (record: Strategy) => {
     setEditingStrategy(record);
     form.setFieldsValue(record);
     setVisible(true);
   };
 
-  const handleDelete = async (id: number) => {
+  // 修改参数类型和处理返回结果
+  const handleDelete = async (id: string) => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除这个策略吗？',
       onOk: async () => {
-        await strategyStore.deleteStrategy(id);
+        const result = await strategyStore.deleteStrategy(id);
+        if (!result.success) {
+          message.error(result.error);
+        }
       },
     });
   };
@@ -43,9 +49,17 @@ const StrategyList: React.FC = observer(() => {
     try {
       const values = await form.validateFields();
       if (editingStrategy) {
-        await strategyStore.updateStrategy(editingStrategy.id!, values);
+        const result = await strategyStore.updateStrategy(editingStrategy.id, values);
+        if (!result.success) {
+          message.error(result.error);
+          return;
+        }
       } else {
-        await strategyStore.addStrategy(values);
+        const result = await strategyStore.addStrategy(values);
+        if (!result.success) {
+          message.error(result.error);
+          return;
+        }
       }
       setVisible(false);
     } catch (error) {
@@ -73,10 +87,10 @@ const StrategyList: React.FC = observer(() => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: IStrategy) => (
+      render: (_: any, record: Strategy) => (
         <Space>
           <Button type="primary" onClick={() => handleEdit(record)}>编辑</Button>
-          <Button danger onClick={() => handleDelete(record.id!)}>删除</Button>
+          <Button danger onClick={() => handleDelete(record.id)}>删除</Button>
         </Space>
       ),
     },

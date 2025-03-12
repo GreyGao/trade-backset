@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Tabs, Table, Button, Statistic, Row, Col, Descriptions, Space, Modal, Form, Input, InputNumber, Select } from 'antd';
+import { Card, Tabs, Table, Button, Statistic, Row, Col, Descriptions, Space, Modal, Form, Input, InputNumber, Select, message } from 'antd';
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
-import { rootStore } from '../stores/RootStore';
-import { ITransaction, IPosition } from '../db';
+import { rootStore } from '../stores';
+import { Trade, Position } from '../types/database';
 
 const { TabPane } = Tabs;
 
@@ -17,10 +17,9 @@ const BacktestDetail: React.FC = observer(() => {
 
   useEffect(() => {
     if (id) {
-      const backtestId = parseInt(id);
-      backtestStore.getBacktest(backtestId);
-      transactionStore.fetchTransactionsByBacktest(backtestId);
-      positionStore.fetchPositionsByBacktest(backtestId);
+      backtestStore.getBacktest(id);
+      transactionStore.fetchTransactionsByBacktest(id);
+      positionStore.fetchPositionsByBacktest(id);
       stockStore.fetchStocks();
     }
   }, [id, backtestStore, transactionStore, positionStore, stockStore]);
@@ -41,25 +40,31 @@ const BacktestDetail: React.FC = observer(() => {
       
       if (!id || !stock) return;
       
-      const backtestId = parseInt(id);
-      const transaction: Omit<ITransaction, 'id'> = {
-        backtestId,
+      const transaction: Omit<Trade, 'id'> = {
+        backtestId: id,
         stockCode: values.stockCode,
         stockName: stock.name,
         type: values.type,
         price: values.price,
-        shares: values.shares,
+        quantity: values.shares, // 注意：字段名可能已更改
         fee: values.fee || 0,
         amount: values.price * values.shares,
-        datetime: new Date(),
-        profit: values.type === 'SELL' ? values.profit : undefined,
-        isWin: values.type === 'SELL' ? values.profit > 0 : undefined
+        timestamp: Date.now(), // 注意：字段名可能已更改
+        profit: values.type === 'SELL' ? values.profit : 0,
+        reason: values.reason,
       };
       
-      await transactionStore.addTransaction(transaction, backtestStore);
+      const result = await transactionStore.addTransaction(transaction, backtestStore);
+      if (!result.success) {
+        message.error(result.error);
+        return;
+      }
       
       // 更新持仓
-      await positionStore.updatePositions(backtestId, transaction as ITransaction);
+      const positionResult = await positionStore.updatePositions(id, transaction as Trade);
+      if (!positionResult.success) {
+        message.error(positionResult.error);
+      }
       
       setTransactionModalVisible(false);
     } catch (error) {
@@ -67,11 +72,12 @@ const BacktestDetail: React.FC = observer(() => {
     }
   };
 
+  // 修改类型
   const transactionColumns = [
     {
       title: '时间',
-      dataIndex: 'datetime',
-      key: 'datetime',
+      dataIndex: 'timestamp', // 可能已从 datetime 改为 timestamp
+      key: 'timestamp',
       render: (text: Date) => text.toLocaleString(),
     },
     {
@@ -121,6 +127,7 @@ const BacktestDetail: React.FC = observer(() => {
     },
   ];
 
+  // 修改类型
   const positionColumns = [
     {
       title: '股票代码',
@@ -134,13 +141,13 @@ const BacktestDetail: React.FC = observer(() => {
     },
     {
       title: '持仓数量',
-      dataIndex: 'shares',
-      key: 'shares',
+      dataIndex: 'quantity', // 可能已从 shares 改为 quantity
+      key: 'quantity',
     },
     {
       title: '平均成本',
-      dataIndex: 'averageCost',
-      key: 'averageCost',
+      dataIndex: 'avgCost', // 可能已从 averageCost 改为 avgCost
+      key: 'avgCost',
       render: (text: number) => `¥${text.toFixed(2)}`,
     },
     {
@@ -159,10 +166,12 @@ const BacktestDetail: React.FC = observer(() => {
       title: '盈亏',
       dataIndex: 'profit',
       key: 'profit',
-      render: (text: number, record: IPosition) => {
-        if (!text || !record.currentPrice) return '-';
+      render: (text: number, record: Position) => {
+        if (!text || !record.marketPrice) return '-';
+        // 注意：profitRatio 可能不存在，需要计算
+        const profitRatio = (record.marketPrice - record.avgCost) / record.avgCost;
         const color = text > 0 ? '#52c41a' : '#f5222d';
-        return <span style={{ color }}>{`¥${text.toFixed(2)} (${(record.profitRatio! * 100).toFixed(2)}%)`}</span>;
+        return <span style={{ color }}>{`¥${text.toFixed(2)} (${(profitRatio * 100).toFixed(2)}%)`}</span>;
       },
     },
   ];
@@ -172,6 +181,10 @@ const BacktestDetail: React.FC = observer(() => {
   }
 
   const backtest = backtestStore.currentBacktest;
+  // 从 summary 中获取所有需要的统计数据
+  const { summary } = backtest;
+  // 确保 profitRatio 可以从 summary 中获取，或者从 backtest 对象中获取
+  const profitRatio = summary.profitRatio || (backtest.currentCapital - backtest.initialCapital) / backtest.initialCapital;
 
   return (
     <div>
@@ -187,9 +200,9 @@ const BacktestDetail: React.FC = observer(() => {
           <Card>
             <Statistic
               title="收益比例"
-              value={backtest.profitRatio * 100}
+              value={profitRatio * 100}
               precision={2}
-              valueStyle={{ color: backtest.profitRatio >= 0 ? '#52c41a' : '#f5222d' }}
+              valueStyle={{ color: profitRatio >= 0 ? '#52c41a' : '#f5222d' }}
               suffix="%"
             />
           </Card>
@@ -198,7 +211,7 @@ const BacktestDetail: React.FC = observer(() => {
           <Card>
             <Statistic
               title="正确率"
-              value={backtest.winRate * 100}
+              value={summary.winRate * 100}
               precision={2}
               valueStyle={{ color: '#7b39ed' }}
               suffix="%"
@@ -209,7 +222,7 @@ const BacktestDetail: React.FC = observer(() => {
           <Card>
             <Statistic
               title="盈亏比"
-              value={backtest.profitFactor}
+              value={summary.profitFactor}
               precision={2}
               valueStyle={{ color: '#7b39ed' }}
             />
@@ -219,9 +232,9 @@ const BacktestDetail: React.FC = observer(() => {
           <Card>
             <Statistic
               title="期望值"
-              value={backtest.expectation}
+              value={summary.expectation}
               precision={2}
-              valueStyle={{ color: backtest.expectation >= 0 ? '#52c41a' : '#f5222d' }}
+              valueStyle={{ color: summary.expectation >= 0 ? '#52c41a' : '#f5222d' }}
             />
           </Card>
         </Col>
@@ -229,10 +242,10 @@ const BacktestDetail: React.FC = observer(() => {
 
       <Descriptions bordered style={{ marginBottom: 16 }}>
         <Descriptions.Item label="策略名称">{backtest.strategyName}</Descriptions.Item>
-        <Descriptions.Item label="初始资金">{`¥${backtest.initialBalance.toLocaleString()}`}</Descriptions.Item>
-        <Descriptions.Item label="当前资金">{`¥${backtest.currentBalance.toLocaleString()}`}</Descriptions.Item>
-        <Descriptions.Item label="最大回撤">{`${(backtest.maxDrawdown * 100).toFixed(2)}%`}</Descriptions.Item>
-        <Descriptions.Item label="交易次数">{backtest.transactionCount}</Descriptions.Item>
+        <Descriptions.Item label="初始资金">{`¥${backtest.initialCapital.toLocaleString()}`}</Descriptions.Item>
+        <Descriptions.Item label="当前资金">{`¥${backtest.currentCapital.toLocaleString()}`}</Descriptions.Item>
+        <Descriptions.Item label="最大回撤">{`${(summary.maxDrawdown * 100).toFixed(2)}%`}</Descriptions.Item>
+        <Descriptions.Item label="交易次数">{summary.totalTrades}</Descriptions.Item>
         <Descriptions.Item label="创建时间">{backtest.createTime.toLocaleString()}</Descriptions.Item>
       </Descriptions>
 
