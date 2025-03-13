@@ -15,7 +15,9 @@ export class StrategyStore {
   async fetchStrategies() {
     this.loading = true;
     try {
-      this.strategies = await db.strategies.find({});
+      // 修改查询方法，添加按创建时间倒序排序
+      this.strategies = await db.strategies.find().sort((a, b) => b.createTime > a.createTime ? 1 : -1);
+      // console.log(JSON.parse(JSON.stringify(this.strategies)))
     } catch (error) {
       console.error('获取策略列表失败:', error);
     } finally {
@@ -26,7 +28,7 @@ export class StrategyStore {
   async addStrategy(strategy: Omit<Strategy, 'id' | 'createTime'>): Promise<DatabaseResult<Strategy>> {
     try {
       const now = Date.now();
-      const newStrategy: Strategy = { 
+      const newStrategy: Strategy = {
         ...strategy,
         id: uuidv4(),
         createTime: now,
@@ -40,9 +42,9 @@ export class StrategyStore {
       return { success: true, data: newStrategy };
     } catch (error) {
       console.error('添加策略失败:', error);
-      return { 
-        success: false, 
-        error: `添加策略失败：${error instanceof Error ? error.message : String(error)}` 
+      return {
+        success: false,
+        error: `添加策略失败：${error instanceof Error ? error.message : String(error)}`
       };
     }
   }
@@ -53,26 +55,26 @@ export class StrategyStore {
       if (!existingStrategy) {
         return { success: false, error: `未找到ID为${id}的策略` };
       }
-      
+
       const updatedStrategy: Strategy = {
         ...existingStrategy,
         ...data,
         id,
         updateTime: Date.now()
       };
-      
+
       const result = await db.strategies.update(updatedStrategy);
       if (!result) {
         return { success: false, error: '更新策略失败：数据库操作未返回结果' };
       }
-      
+
       await this.fetchStrategies();
       return { success: true, data: updatedStrategy };
     } catch (error) {
       console.error('更新策略失败:', error);
-      return { 
-        success: false, 
-        error: `更新策略失败：${error instanceof Error ? error.message : String(error)}` 
+      return {
+        success: false,
+        error: `更新策略失败：${error instanceof Error ? error.message : String(error)}`
       };
     }
   }
@@ -83,19 +85,19 @@ export class StrategyStore {
       if (!strategy) {
         return { success: false, error: `未找到ID为${id}的策略` };
       }
-      
+
       const result = await db.strategies.remove(strategy);
       if (!result) {
         return { success: false, error: '删除策略失败：数据库操作未返回结果' };
       }
-      
+
       await this.fetchStrategies();
       return { success: true, data: id };
     } catch (error) {
       console.error('删除策略失败:', error);
-      return { 
-        success: false, 
-        error: `删除策略失败：${error instanceof Error ? error.message : String(error)}` 
+      return {
+        success: false,
+        error: `删除策略失败：${error instanceof Error ? error.message : String(error)}`
       };
     }
   }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Space, Button, DatePicker } from 'antd';
 import { Position, Stock } from '../../types/database';
 import { calculateSellFee } from '../../utils/feeCalculator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 interface SellModalProps {
   visible: boolean;
@@ -31,13 +31,37 @@ const SellModal: React.FC<SellModalProps> = ({
   useEffect(() => {
     if (visible) {
       form.resetFields();
+      
+      // 设置默认日期
       if (lastTransaction) {
         form.setFieldsValue({
-          timestamp: moment(lastTransaction.timestamp),
+          timestamp: dayjs(lastTransaction.timestamp),
         });
+        
+        // 如果上一次交易的股票在当前持仓中，则默认选中
+        if (lastTransaction.stockCode && positions.some(p => p.stockCode === lastTransaction.stockCode)) {
+          form.setFieldsValue({
+            stockCode: lastTransaction.stockCode
+          });
+          handleStockChange(lastTransaction.stockCode);
+        } else if (positions.length > 0) {
+          // 否则选择持仓列表中的第一个股票
+          const firstPosition = positions[0];
+          form.setFieldsValue({
+            stockCode: firstPosition.stockCode
+          });
+          handleStockChange(firstPosition.stockCode);
+        }
+      } else if (positions.length > 0) {
+        // 如果没有上次交易记录，则选择持仓列表中的第一个股票
+        const firstPosition = positions[0];
+        form.setFieldsValue({
+          stockCode: firstPosition.stockCode
+        });
+        handleStockChange(firstPosition.stockCode);
       }
     }
-  }, [visible, lastTransaction, form]);
+  }, [visible, lastTransaction, form, positions]);
 
   // 当选择股票时更新持仓信息
   const handleStockChange = (stockCode: string) => {
@@ -116,12 +140,12 @@ const SellModal: React.FC<SellModalProps> = ({
           name="timestamp"
           label="交易日期"
           rules={[{ required: true, message: '请选择交易日期' }]}
+          initialValue={dayjs()}
         >
           <DatePicker 
             style={{ width: '100%' }}
             format="YYYY-MM-DD"
             placeholder="请选择交易日期"
-            defaultValue={moment()}
           />
         </Form.Item>
         <Form.Item

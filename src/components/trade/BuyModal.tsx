@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Space, Button, DatePicker } from 'antd';
 import { Stock } from '../../types/database';
 import { calculateBuyFee } from '../../utils/feeCalculator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 interface BuyModalProps {
   visible: boolean;
@@ -35,7 +35,8 @@ const BuyModal: React.FC<BuyModalProps> = ({
       form.setFieldsValue({
         stockCode: lastTransaction.stockCode,
         price: lastTransaction.price,
-        timestamp: lastTransaction.timestamp ? moment(lastTransaction.timestamp) : undefined, // 设置默认日期
+        // timestamp: new Date('2025-01-20')
+        timestamp: lastTransaction.timestamp ? dayjs(lastTransaction.timestamp) : undefined, // 设置默认日期
       });
       calculateMaxBuyQuantity(lastTransaction.price);
     }
@@ -105,6 +106,7 @@ const BuyModal: React.FC<BuyModalProps> = ({
           name="timestamp"
           label="交易日期"
           rules={[{ required: true, message: '请选择交易日期' }]}
+          initialValue={dayjs()}
         >
           <DatePicker 
             style={{ width: '100%' }}

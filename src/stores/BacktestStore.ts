@@ -17,7 +17,8 @@ export class BacktestStore {
   async fetchBacktests() {
     this.loading = true;
     try {
-      this.backtests = await db.backtests.find({});
+      this.backtests = await db.backtests.find().sort((a, b) => b.createTime > a.createTime ? 1 : -1);
+      // console.log(JSON.parse(JSON.stringify(this.backtests)))
     } catch (error) {
       console.error('获取回测列表失败:', error);
     } finally {
