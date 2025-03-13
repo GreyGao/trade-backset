@@ -15,7 +15,7 @@ export interface Backtest {
   startDate: number;           // 回测开始日期
   endDate?: number;            // 回测结束日期（可选）
   initialCapital: number;    // 初始资金
-  currentCapital: number;    // 当前资金
+  currentCapital: number;    // 当前资金（现金余额）
   status: 'active' | 'completed' | 'archived';  // 回测状态：进行中、已完成、已归档
   summary: {
     totalProfit: number;     // 总盈亏
@@ -29,6 +29,8 @@ export interface Backtest {
     profitFactor: number;    // 盈亏比（总盈利/总亏损的比值）
     expectation: number;     // 期望值（平均每笔交易的预期收益）
     profitRatio: number;     // 收益比例（总收益/初始资金）
+    currentCash: number;     // 现金余额
+    totalAssets: number;     // 账户总资产（现金+持仓市值）
   };
   notes: string;             // 备注
   createTime: number;          // 创建时间
@@ -71,7 +73,7 @@ export interface Stock {
   // 其他股票相关字段
 }
 
-// 从 index.ts 添加的接口
+// 投资组合
 export interface Portfolio {
   id: string;                // 投资组合ID
   backtestId: string;        // 关联的回测ID

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Tabs, Table, Button, Statistic, Row, Col, Descriptions, Space, Modal, Form, Input, InputNumber, Select, message } from 'antd';
+import { Card, Tabs, Table, Button, Statistic, Row, Col, Descriptions, Space, Modal, message } from 'antd';
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { rootStore } from '../stores';
 import { Trade, Position } from '../types/database';
 import { withDBCheck } from '../components/withDBCheck';
-import { dateToTimestamp, formatTimestamp } from '../utils/dateFormat';
+import { formatTimestamp } from '../utils/dateFormat';
 import BuyModal from '../components/trade/BuyModal';
 import SellModal from '../components/trade/SellModal';
 
@@ -18,7 +18,6 @@ const BacktestDetail: React.FC = observer(() => {
   const { backtestStore, transactionStore, positionStore, stockStore } = rootStore;
   const [buyModalVisible, setBuyModalVisible] = useState(false);
   const [sellModalVisible, setSellModalVisible] = useState(false);
-  const [form] = Form.useForm();
 
   useEffect(() => {
     if (id) {
@@ -56,12 +55,12 @@ const BacktestDetail: React.FC = observer(() => {
         quantity: values.shares,
         fee: values.fee || 0,
         amount: values.price * values.shares,
-        timestamp: dateToTimestamp(new Date(values.timestamp)),
+        timestamp: values.timestamp,
         profit: 0,
         reason: values.reason,
       };
 
-      const result = await transactionStore.addTransaction(transaction, backtestStore);
+      const result = await transactionStore.addTransaction(transaction, backtestStore, positionStore);
       if (!result.success) {
         message.error(result.error);
         return;
@@ -73,12 +72,13 @@ const BacktestDetail: React.FC = observer(() => {
       }
 
       setBuyModalVisible(false);
+      message.success('买入成功');
     } catch (error) {
       console.error('添加交易记录失败:', error);
+      message.error('买入失败');
     }
   };
 
-  // 添加卖出提交处理函数
   const handleSellSubmit = async (values: any) => {
     try {
       const position = positionStore.positions.find(p => p.stockCode === values.stockCode);
@@ -94,12 +94,12 @@ const BacktestDetail: React.FC = observer(() => {
         quantity: values.shares,
         fee: values.fee || 0,
         amount: values.price * values.shares,
-        timestamp: dateToTimestamp(new Date(values.timestamp)),
-        profit: (values.price - position.avgCost) * values.shares,
+        timestamp: values.timestamp,
+        profit: (values.price - position.avgCost) * values.shares - (values.fee || 0),
         reason: values.reason,
       };
 
-      const result = await transactionStore.addTransaction(transaction, backtestStore);
+      const result = await transactionStore.addTransaction(transaction, backtestStore, positionStore);
       if (!result.success) {
         message.error(result.error);
         return;
@@ -114,35 +114,6 @@ const BacktestDetail: React.FC = observer(() => {
     } catch (error) {
       console.error('添加卖出记录失败:', error);
     }
-  };
-
-  // 添加删除交易记录的处理函数
-  const handleDeleteTransaction = async (record: Trade) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除这条交易记录吗？删除后将更新持仓和资金。',
-      okText: '确认',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          const result = await transactionStore.deleteTransaction(record.id, backtestStore);
-          if (!result.success) {
-            message.error(result.error);
-            return;
-          }
-
-          // 删除后重新获取持仓信息
-          if (id) {
-            await positionStore.fetchPositionsByBacktest(id);
-          }
-
-          message.success('删除成功');
-        } catch (error) {
-          console.error('删除交易记录失败:', error);
-          message.error('删除失败');
-        }
-      }
-    });
   };
 
   // 修改类型
@@ -197,7 +168,12 @@ const BacktestDetail: React.FC = observer(() => {
       title: '盈亏',
       dataIndex: 'profit',
       key: 'profit',
-      render: (text: number) => text ? `¥${text.toFixed(2)}` : '-',
+      render: (text: number, record: Trade) => {
+        // if (!text) return '-';
+        if (record.type === 'BUY') return '-'
+        const color = text < 0 ? '#52c41a' : '#f5222d';
+        return <span style={{ color: text !== 0 ? color : undefined }}>{`¥${text.toFixed(2)}`}</span>;
+      },
     },
     // {
     //   title: '操作',
@@ -270,8 +246,8 @@ const BacktestDetail: React.FC = observer(() => {
   const backtest = backtestStore.currentBacktest;
   // 从 summary 中获取所有需要的统计数据
   const { summary } = backtest;
-  // 确保 profitRatio 可以从 summary 中获取，或者从 backtest 对象中获取
-  const profitRatio = summary.profitRatio || (backtest.currentCapital - backtest.initialCapital) / backtest.initialCapital;
+  // 使用新的计算方法得到的 profitRatio
+  const profitRatio = summary.profitRatio;
 
   return (
     <div>
@@ -330,7 +306,9 @@ const BacktestDetail: React.FC = observer(() => {
       <Descriptions bordered style={{ marginBottom: 16 }}>
         <Descriptions.Item label="策略名称">{backtest.strategyName}</Descriptions.Item>
         <Descriptions.Item label="初始资金">{`¥${backtest.initialCapital.toLocaleString()}`}</Descriptions.Item>
-        <Descriptions.Item label="当前资金">{`¥${backtest.currentCapital.toLocaleString()}`}</Descriptions.Item>
+        <Descriptions.Item label="现金余额">{`¥${backtest.currentCapital.toLocaleString()}`}</Descriptions.Item>
+        <Descriptions.Item label="持仓市值">{`¥${(summary.totalAssets - backtest.currentCapital).toLocaleString()}`}</Descriptions.Item>
+        <Descriptions.Item label="账户总资产">{`¥${summary.totalAssets.toLocaleString()}`}</Descriptions.Item>
         <Descriptions.Item label="最大回撤">{`${(summary.maxDrawdown * 100).toFixed(2)}%`}</Descriptions.Item>
         <Descriptions.Item label="交易次数">{summary.totalTrades}</Descriptions.Item>
         <Descriptions.Item label="创建时间">{formatTimestamp(backtest.createTime)}</Descriptions.Item>

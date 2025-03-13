@@ -3,7 +3,7 @@ import { db } from '../db';
 import { Backtest } from '../types/database';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseResult } from './types';
-import { m } from 'react-router/dist/development/fog-of-war-CvttGpNz';
+import { updateBacktestSummary } from '../utils/backtestCalculator';
 
 export class BacktestStore {
   backtests: Backtest[] = [];
@@ -17,8 +17,7 @@ export class BacktestStore {
   async fetchBacktests() {
     this.loading = true;
     try {
-      this.backtests = await db.backtests.find().sort((a, b) => b.createTime > a.createTime ? 1 : -1);
-      // console.log(JSON.parse(JSON.stringify(this.backtests)))
+      this.backtests = await db.backtests.find().sort((a, b) => b.createTime - a.createTime);
     } catch (error) {
       console.error('获取回测列表失败:', error);
     } finally {
@@ -33,8 +32,17 @@ export class BacktestStore {
         return { success: false, error: `未找到ID为${id}的回测` };
       }
       
-      this.currentBacktest = backtest;
-      return { success: true, data: backtest };
+      // 获取最新的交易记录并更新统计数据
+      const trades = await db.trades.find({ backtestId: id });
+      const updatedBacktest = updateBacktestSummary(backtest, trades);
+      
+      // 如果统计数据有变化，更新数据库
+      if (JSON.stringify(backtest.summary) !== JSON.stringify(updatedBacktest.summary)) {
+        await db.backtests.update(updatedBacktest);
+      }
+      
+      this.currentBacktest = updatedBacktest;
+      return { success: true, data: updatedBacktest };
     } catch (error) {
       console.error('获取回测详情失败:', error);
       return { 
@@ -61,8 +69,11 @@ export class BacktestStore {
           profitFactor: 0,
           expectation: 0,
           profitRatio: 0,
+          currentCash: backtest.initialCapital, // 初始现金等于初始资金
+          totalAssets: backtest.initialCapital, // 初始总资产等于初始资金
         },
-        createTime: Date.now()
+        createTime: Date.now(),
+        updateTime: Date.now()
       };
       
       const id = await db.backtests.insert(newBacktest);
@@ -114,27 +125,27 @@ export class BacktestStore {
       };
     }
   }
-  // 添加删除回测的方法
-    async deleteBacktest(id: string): Promise<DatabaseResult<string>> {
-      try {
-        const backtest = await db.backtests.findOne({ id });
-        if (!backtest) {
-          return { success: false, error: `未找到ID为${id}的回测` };
-        }
-        
-        const result = await db.backtests.remove(backtest);
-        if (!result) {
-          return { success: false, error: '删除回测失败：数据库操作未返回结果' };
-        }
-        
-        await this.fetchBacktests();
-        return { success: true, data: id };
-      } catch (error) {
-        console.error('删除回测失败:', error);
-        return { 
-          success: false, 
-          error: `删除回测失败：${error instanceof Error ? error.message : String(error)}` 
-        };
+
+  async deleteBacktest(id: string): Promise<DatabaseResult<string>> {
+    try {
+      const backtest = await db.backtests.findOne({ id });
+      if (!backtest) {
+        return { success: false, error: `未找到ID为${id}的回测` };
       }
+      
+      const result = await db.backtests.remove(backtest);
+      if (!result) {
+        return { success: false, error: '删除回测失败：数据库操作未返回结果' };
+      }
+      
+      await this.fetchBacktests();
+      return { success: true, data: id };
+    } catch (error) {
+      console.error('删除回测失败:', error);
+      return { 
+        success: false, 
+        error: `删除回测失败：${error instanceof Error ? error.message : String(error)}` 
+      };
     }
+  }
 }
